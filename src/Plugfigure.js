@@ -103,9 +103,9 @@ export default class Plugfigure {
     if (typeof builder !== 'function') throw new TypeError('Builder must be a function');
     if (watcher && typeof watcher !== 'function') throw new TypeError('Watcher must be a function');
 
-    cached = new Map();
+    const cache = new Map();
     const getter = (key) => {
-      if (cached.has(key)) return cached.get(key);
+      if (cache.has(key)) return cache.get(key);
       const val = this.get(key, async (newVal) => {
         cache.set(key, newVal);
         watcher(await builder(getter));
