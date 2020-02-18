@@ -10,7 +10,7 @@ const plugins = new WeakMap();
 function notifyWatchers(instance) {
   const myWatchers = watchers.get(instance);
   myWatchers.forEach(({key, watcher}) => {
-    const newVal = instance.getValue(key);
+    const newVal = instance.get(key);
     watcher(newVal);
   });
 }
@@ -85,7 +85,7 @@ export default class Plugfigure {
     return this.getValueFromData(nextVal, remaining, watcher);
   }
 
-  async getValue(key, watcher) {
+  async get(key, watcher) {
     if (watcher) {
       if (typeof watcher !== 'function') {
         throw new TypeError('Watcher must be a function');
@@ -97,6 +97,24 @@ export default class Plugfigure {
       });
     }
     return this.getValueFromData(this.loaded, key, watcher);
+  }
+
+  async build(builder, watcher) {
+    if (typeof builder !== 'function') throw new TypeError('Builder must be a function');
+    if (watcher && typeof watcher !== 'function') throw new TypeError('Watcher must be a function');
+
+    cached = new Map();
+    const getter = (key) => {
+      if (cached.has(key)) return cached.get(key);
+      const val = this.get(key, async (newVal) => {
+        cache.set(key, newVal);
+        watcher(await builder(getter));
+      });
+      cache.set(key, val);
+      return val;
+    }
+
+    return builder(getter);
   }
 }
 
