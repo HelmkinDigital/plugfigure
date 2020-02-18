@@ -1,6 +1,9 @@
 {
-  "name": "@plugfigure/core",
-  "version": "0.0.2",
+  "name": "@HelmkinDigital/plugfigure",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com/"
+  },
+  "version": "0.0.1",
   "description": "Pluggable configuration loader",
   "main": "lib/index.js",
   "scripts": {
@@ -8,7 +11,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/plugfigure/plugfigure.git"
+    "url": "git+https://github.com/HelmkinDigital/plugfigure.git"
   },
   "keywords": [
     "configuration",
@@ -17,10 +20,6 @@
   ],
   "author": "Ben Turner",
   "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/plugfigure/plugfigure/issues"
-  },
-  "homepage": "https://github.com/plugfigure/plugfigure#readme",
   "devDependencies": {
     "@babel/core": "^7.8.4",
     "@babel/preset-env": "^7.8.4"
