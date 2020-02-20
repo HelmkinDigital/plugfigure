@@ -28,6 +28,12 @@ export default class Plugfigure {
     watchers.set(this, []);
   }
 
+  setPlugin(name, handler) {
+    if (typeof name !== 'string') throw new TypeError('Plugin name must be a string');
+    if (typeof handler !== 'function') throw new TypeError('Plugin must be a function');
+    plugins.get(this)[name] = handler;
+  }
+
   async load(file, options = 'utf8') {
     const filecontents = await new Promise((resolve, reject) => {
       fs.readFile(file, options, (err, data) => err ? reject(err) : resolve(data));
@@ -86,17 +92,20 @@ export default class Plugfigure {
   }
 
   async get(key, watcher) {
+    let lastValue;
     if (watcher) {
       if (typeof watcher !== 'function') {
         throw new TypeError('Watcher must be a function');
       }
 
-      watchers.get(this).push({
-        key,
-        watcher,
+      watchers.get(this).push(key, (newValue) => {
+        if (newVal === lastValue) return;
+        lastValue = newValue;
+        watcher(newValue);
       });
     }
-    return this.getValueFromData(this.loaded, key, watcher);
+    lastValue = this.getValueFromData(this.loaded, key, watcher);
+    return lastValue;
   }
 
   async build(builder, watcher) {
