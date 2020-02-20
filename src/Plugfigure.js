@@ -105,7 +105,7 @@ export default class Plugfigure {
         watcher: wrappedWatcher,
       });
     }
-    lastValue = this.getValueFromData(this.loaded, key, wrappedWatcher);
+    lastValue = await this.getValueFromData(this.loaded, key, wrappedWatcher);
     return lastValue;
   }
 
