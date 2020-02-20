@@ -98,10 +98,13 @@ export default class Plugfigure {
         throw new TypeError('Watcher must be a function');
       }
 
-      watchers.get(this).push(key, (newValue) => {
-        if (newVal === lastValue) return;
-        lastValue = newValue;
-        watcher(newValue);
+      watchers.get(this).push({
+        key,
+        watcher: (newValue) => {
+          if (newVal === lastValue) return;
+          lastValue = newValue;
+          watcher(newValue);
+        },
       });
     }
     lastValue = this.getValueFromData(this.loaded, key, watcher);
