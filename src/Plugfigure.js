@@ -41,10 +41,6 @@ export default class Plugfigure {
 
     this.loaded = YAML.parse(filecontents);
     await notifyWatchers(this);
-  }
-
-  async loadAndWatch(file, options = 'utf8') {
-    await this.load(file, options);
 
     fs.watch(file, {
       persistent: false,
