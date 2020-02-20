@@ -7,12 +7,12 @@ const maxRecursion = 25;
 const watchers = new WeakMap();
 const plugins = new WeakMap();
 
-function notifyWatchers(instance) {
+async function notifyWatchers(instance) {
   const myWatchers = watchers.get(instance);
-  myWatchers.forEach(({key, watcher}) => {
-    const newVal = instance.get(key);
+  return Promise.all(myWatchers.map(async ({key, watcher}) => {
+    const newVal = await instance.get(key);
     watcher(newVal);
-  });
+  }));
 }
 
 export default class Plugfigure {
@@ -40,7 +40,7 @@ export default class Plugfigure {
     });
 
     this.loaded = YAML.parse(filecontents);
-    notifyWatchers(this);
+    await notifyWatchers(this);
   }
 
   async loadAndWatch(file, options = 'utf8') {
@@ -93,6 +93,12 @@ export default class Plugfigure {
 
   async get(key, watcher) {
     let lastValue;
+    const wrappedWatcher = (newValue) => {
+      if (newValue === lastValue) return;
+      lastValue = newValue;
+      watcher(newValue);
+    };
+
     if (watcher) {
       if (typeof watcher !== 'function') {
         throw new TypeError('Watcher must be a function');
@@ -100,14 +106,10 @@ export default class Plugfigure {
 
       watchers.get(this).push({
         key,
-        watcher: (newValue) => {
-          if (newValue === lastValue) return;
-          lastValue = newValue;
-          watcher(newValue);
-        },
+        watcher: wrappedWatcher,
       });
     }
-    lastValue = this.getValueFromData(this.loaded, key, watcher);
+    lastValue = this.getValueFromData(this.loaded, key, wrappedWatcher);
     return lastValue;
   }
 
