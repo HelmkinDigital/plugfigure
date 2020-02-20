@@ -101,7 +101,7 @@ export default class Plugfigure {
       watchers.get(this).push({
         key,
         watcher: (newValue) => {
-          if (newVal === lastValue) return;
+          if (newValue === lastValue) return;
           lastValue = newValue;
           watcher(newValue);
         },
