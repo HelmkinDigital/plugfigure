@@ -1,22 +1,13 @@
 import YAML from 'yaml';
 import fs from 'fs';
 
+import WatcherTree from './WatcherTree';
+
 // We may want to pull this from somewhere. Not sure yet.
 const maxRecursion = 25;
 
-const watchers = new WeakMap();
-const plugins = new WeakMap();
-
-async function notifyWatchers(instance) {
-  const myWatchers = watchers.get(instance);
-  return Promise.all(myWatchers.map(async ({key, watcher}) => {
-    const newVal = await instance.get(key);
-    watcher(newVal);
-  }));
-}
-
 export default class Plugfigure {
-  constructor(installedPlugins = {}) {
+  constructor(plugins = {}) {
     if (typeof plugins !== 'object') throw new TypeError('Plugins must be an object');
     Object.entries(plugins).forEach(([name, plugin]) => {
       if (typeof plugin !== 'function') {
@@ -24,14 +15,13 @@ export default class Plugfigure {
       }
     });
 
-    plugins.set(this, installedPlugins);
-    watchers.set(this, []);
+    this.plugins = plugins;
   }
 
   setPlugin(name, handler) {
     if (typeof name !== 'string') throw new TypeError('Plugin name must be a string');
     if (typeof handler !== 'function') throw new TypeError('Plugin must be a function');
-    plugins.get(this)[name] = handler;
+    this.plugins[name] = handler;
   }
 
   async load(file, options = 'utf8') {
@@ -51,81 +41,20 @@ export default class Plugfigure {
     });
   }
 
-  async getValueFromData(data, key, watcher = () => {}) {
-    if (typeof watcher !== 'function') {
-      throw new TypeError('Watcher must be a function');
-    }
+  async getPluginValue(query, watcher) {
+    if (typeof query !== 'string' || query[0] !== '@') return query;
 
-    const [current, ...remaining] = typeof key === 'string' ? key.split('.') : key;
-    if (!current || !data) return data;
+    const [ pluginRawName, ...args ] = query.split(' ');
+    const pluginName = pluginRawName.substring(1);
 
-    let nextVal = data[current];
-
-    for (let i = 0; i < maxRecursion && typeof nextVal === 'string' && nextVal.startsWith('@'); i++) {
-      const [pluginNameRaw, ...splitReq] = nextVal.split(' ');
-      const pluginName = pluginNameRaw.substring(1);
-      const pluginReq = splitReq.join(' ');
-
-      const myPlugins = plugins.get(this);
-      const plugin = myPlugins[pluginName];
-      if (!plugin) throw new Error(`No plugin ${pluginName} installed`);
-
-      nextVal = await plugin(pluginReq, (newVal) => {
-        const newFinalVal = this.getValueFromData(newVal, key, watcher);
-        watcher(newFinalVal);
-      });
-    }
-
-    if (typeof nextVal === 'string' && nextVal.startsWith('@')) {
-      throw new Error('Max recursion reached. Possible loop detected.');
-    }
-
-    if (typeof nextVal === 'string' && nextVal.startsWith('\@')) {
-      nextVal = nextVal.substring(1);
-    }
-
-    return this.getValueFromData(nextVal, remaining, watcher);
+    const plugin = this.plugins[pluginName];
+    return plugin(args, watcher);
   }
 
-  async get(key, watcher) {
-    let lastValue;
-    const wrappedWatcher = (newValue) => {
-      if (newValue === lastValue) return;
-      lastValue = newValue;
-      watcher(newValue);
-    };
+  key(key) {
+    if (!this.tree) throw new Error('Cannot retrieve node from unloaded instance');
 
-    if (watcher) {
-      if (typeof watcher !== 'function') {
-        throw new TypeError('Watcher must be a function');
-      }
-
-      watchers.get(this).push({
-        key,
-        watcher: wrappedWatcher,
-      });
-    }
-    lastValue = await this.getValueFromData(this.loaded, key, wrappedWatcher);
-    return lastValue;
-  }
-
-  async build(builder, watcher) {
-    if (typeof builder !== 'function') throw new TypeError('Builder must be a function');
-    if (watcher && typeof watcher !== 'function') throw new TypeError('Watcher must be a function');
-
-    const cache = new Map();
-    const getter = (key) => {
-      if (cache.has(key)) return cache.get(key);
-      const val = this.get(key, async (newVal) => {
-        cache.set(key, newVal);
-        watcher(await builder(getter));
-      });
-      cache.set(key, val);
-      return val;
-    }
-
-    return builder(getter);
+    return this.tree.getChild(key);
   }
 }
-
 

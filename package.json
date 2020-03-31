@@ -7,7 +7,8 @@
   "description": "Pluggable configuration loader",
   "main": "lib/index.js",
   "scripts": {
-    "prepare": "babel src --out-dir lib"
+    "prepare": "npm run build",
+    "build": "babel src --out-dir lib"
   },
   "repository": {
     "type": "git",
@@ -21,11 +22,16 @@
   "author": "Ben Turner",
   "license": "MIT",
   "devDependencies": {
+    "@HelmkinDigital/eslint-config-rubix": "^1.1.0",
+    "@HelmkinDigital/eslint-plugin": "^1.0.0",
     "@babel/core": "^7.8.4",
     "@babel/preset-env": "^7.8.4"
   },
   "dependencies": {
     "yaml": "^1.7.2"
+  },
+  "eslintConfig": {
+    "extends": "@HelmkinDigital/eslint-config-rubix"
   },
   "babel": {
     "presets": [
