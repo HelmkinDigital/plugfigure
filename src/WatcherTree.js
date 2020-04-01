@@ -6,12 +6,15 @@ const noCache = Symbol('No Cache'); // Use symbol so we can cache null and undef
 export default class ConfigTree extends EventEmitter {
   constructor(parent, key, plugfigure) {
     this.parent = parent;
-    this.parent.on('change', () => {
-      const oldRaw = this.cachedRaw;
-      const newRaw = this.getRawValue(true);
-      if (isDeepStrictEqual(oldRaw, newRaw)) return;
-      this.getValue(true, true);
-    });
+    if (parent instanceof WatcherTree) {
+      this.parent.on('change', () => {
+        const oldRaw = this.cachedRaw;
+        const newRaw = this.getRawValue(true);
+        if (isDeepStrictEqual(oldRaw, newRaw)) return;
+        this.getValue(true, true);
+      });
+    }
+
     this.key = key;
     this.plugfigure = plugfigure;
     this.cachedValue = noCache;
@@ -27,10 +30,10 @@ export default class ConfigTree extends EventEmitter {
       return this.cachedRaw;
     }
 
-    const parentValue = await this.parent.getValue();
+    const parentValue = this.parent instanceof ConfigTree ? await this.parent.getValue() : this.parent;
     if (!parentValue) return undefined;
 
-    return parentValue[this.key];
+    return this.key ? parentValue[this.key] : parentValue; // Will probably only be false for root nodes
   }
 
   async getValue(forceReevaluation, isDependent) {
@@ -104,7 +107,7 @@ export default class ConfigTree extends EventEmitter {
     if (this.cachedValue === noCache) {
       if (bubble) {
         const newBubble = typeof bubble === 'number' ? bubble - 1 : bubble;
-        this.parent.reload(newBubble);
+        if (this.parent instanceof WatcherTree) this.parent.reload(newBubble);
       }
       return;
     }

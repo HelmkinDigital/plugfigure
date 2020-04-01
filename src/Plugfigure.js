@@ -1,5 +1,5 @@
 import YAML from 'yaml';
-import fs from 'fs';
+import { file } from './plugins';
 
 import WatcherTree from './WatcherTree';
 
@@ -24,21 +24,8 @@ export default class Plugfigure {
     this.plugins[name] = handler;
   }
 
-  async load(file, options = 'utf8') {
-    const filecontents = await new Promise((resolve, reject) => {
-      fs.readFile(file, options, (err, data) => err ? reject(err) : resolve(data));
-    });
-
-    this.loaded = YAML.parse(filecontents);
-    await notifyWatchers(this);
-
-    fs.watch(file, {
-      persistent: false,
-      recursive: false,
-      encoding: typeof options === 'string' ? options : options.encoding || 'utf8',
-    }, (eventType) => {
-      if (eventType === 'change') this.load(file, options);
-    });
+  async load(value) {
+    this.tree = new WatcherTree(value, undefined, this);
   }
 
   async getPluginValue(query, watcher) {
