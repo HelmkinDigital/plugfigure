@@ -1,4 +1,4 @@
-import eventemitter from 'events';
+import EventEmitter from 'events';
 import { isDeepStrictEqual } from 'util';
 
 const noCache = Symbol('No Cache'); // Use symbol so we can cache null and undefined
