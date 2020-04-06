@@ -3,7 +3,7 @@
   "publishConfig": {
     "registry": "https://npm.pkg.github.com/"
   },
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Pluggable configuration loader",
   "main": "lib/index.js",
   "scripts": {
