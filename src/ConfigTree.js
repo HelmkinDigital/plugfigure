@@ -5,24 +5,25 @@ const noCache = Symbol('No Cache'); // Use symbol so we can cache null and undef
 
 export default class ConfigTree extends EventEmitter {
   constructor(parent, key, plugfigure) {
+    super();
     this.parent = parent;
-    if (parent instanceof WatcherTree) {
-      this.parent.on('change', () => {
+    if (parent instanceof ConfigTree) {
+      this.parent.on('change', async () => {
         const oldRaw = this.cachedRaw;
-        const newRaw = this.getRawValue(true);
+        const newRaw = await this.getRawValue(true);
         if (isDeepStrictEqual(oldRaw, newRaw)) return;
         this.getValue(true, true);
       });
     }
 
-    this.key = key;
+    this.myKey = key;
     this.plugfigure = plugfigure;
+    this.isEvaluated = false;
     this.cachedValue = noCache;
     this.cachedRaw = noCache;
-    this.children = Map();
+    this.children = new Map();
     this.cancelLastWatcher = () => {};
-
-    this.reloadValue();
+    this.evalLocked = false;
   }
 
   async getRawValue(skipCache) {
@@ -33,7 +34,9 @@ export default class ConfigTree extends EventEmitter {
     const parentValue = this.parent instanceof ConfigTree ? await this.parent.getValue() : this.parent;
     if (!parentValue) return undefined;
 
-    return this.key ? parentValue[this.key] : parentValue; // Will probably only be false for root nodes
+    const rawValue = this.myKey ? parentValue[this.myKey] : parentValue; // Will probably only be false for root nodes
+    this.cachedRaw = rawValue;
+    return rawValue;
   }
 
   async getValue(forceReevaluation, isDependent) {
@@ -41,39 +44,46 @@ export default class ConfigTree extends EventEmitter {
       return this.cachedValue;
     }
 
-    const localValue = this.getRawValue();
+    let newValue = await this.getRawValue();
 
-    if (typeof localValue === 'string' && localValue.startsWith('@')) {
+    const isEvaluated = typeof newValue === 'string' && newValue.startsWith('@');
+
+    if (isEvaluated) {
       this.cancelLastWatcher();
 
       const {
         value: realValue,
         cancel,
-      } = await this.plugfigure.getPluginValue(localValue, (newValue) => {
-        if (isDeepStrictEqual(this.cachedValue, newValue)) return;
-        this.cachedValue = newValue;
-        this.emit('change');
-        this.emit('independentChange');
+      } = await this.plugfigure.getPluginValue(newValue, (newDirectValue) => {
+        if (isDeepStrictEqual(this.cachedValue, newDirectValue)) return;
+        this.cachedValue = newDirectValue;
+        setImmediate(() => this.emit('change'));
+        setImmediate(() => this.emit('independentChange'));
       });
 
       this.cancelLastWatcher = cancel;
 
-      if (!isDeepStrictEqual(realValue, this.cachedValue)) {
-        this.emit('change');
-        if (!isDependent) this.emit('independentChange');
-      }
-      this.cachedValue = realValue;
-      return realValue;
+      newValue = realValue;
     }
 
-    return localValue;
+    if (this.cachedValue !== noCache && !isDeepStrictEqual(newValue, this.cachedValue)) {
+      setImmediate(() => this.emit('change'));
+      if (!isDependent && this.cachedValue !== noCache) {
+        setImmediate(() => this.emit('independentChange'));
+      }
+    }
+
+    this.cachedValue = newValue;
+    this.isEvaluated = isEvaluated;
+
+    return newValue;
   }
 
   get value() {
     return this.getValue();
   }
 
-  getChild(key) {
+  key(key) {
     if (!key) return this;
 
     if (typeof key !== 'string' && !Array.isArray(key)) {
@@ -84,19 +94,19 @@ export default class ConfigTree extends EventEmitter {
 
     if (this.children.has(childKey)) {
       return remainingKeys.length
-        ? this.children.get(childKey).getChild(remainingKeys)
+        ? this.children.get(childKey).key(remainingKeys)
         : this.children.get(childKey);
     }
 
-    const newChild = new ConfigTree(this, childKey, this.pugfigure);
-    newChild.addEventListener('independentChange', () => {
-      this.emit('change');
-      this.emit('independentChange');
+    const newChild = new ConfigTree(this, childKey, this.plugfigure);
+    newChild.on('independentChange', () => {
+      setImmediate(() => this.emit('change'));
+      setImmediate(() => this.emit('independentChange'));
     });
 
 
-    this.children.set(childKey, immediateChild);
-    return remainingKeys.length ? immediateChild.getChild(remainingKeys) : immediateChild;
+    this.children.set(childKey, newChild);
+    return remainingKeys.length ? newChild.key(remainingKeys) : newChild;
   }
 
   // If bubble is truthy, the next ancestor with a cached value will be reloaded.
@@ -104,10 +114,10 @@ export default class ConfigTree extends EventEmitter {
   // If bubble is a number, the next ancestore with a cached value will be
   // reloaded if it is within that many steps of the current node.
   reload(bubble = true) {
-    if (this.cachedValue === noCache) {
+    if (!this.isEvaluated) {
       if (bubble) {
         const newBubble = typeof bubble === 'number' ? bubble - 1 : bubble;
-        if (this.parent instanceof WatcherTree) this.parent.reload(newBubble);
+        if (this.parent instanceof ConfigTree) this.parent.reload(newBubble);
       }
       return;
     }

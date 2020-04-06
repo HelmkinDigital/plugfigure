@@ -1,10 +1,11 @@
 import fs from 'fs';
 import os from 'os';
+import YAML from 'yaml';
 
-export default async function file(filename, cb) {
+export async function file(filename, cb) {
   const fixedFilename = /^~\//.test(filename) ? `${os.homedir()}/${filename.substring(2)}` : filename;
 
-  let lastcontents = await new Promise((resolve, reject) => {
+  let lastContents = await new Promise((resolve, reject) => {
     fs.readFile(fixedFilename, 'utf8', (err, data) => err ? reject(err) : resolve(data));
   });
 
@@ -29,17 +30,42 @@ export default async function file(filename, cb) {
       fs.readFile(fixedFilename, 'utf8', (err, data) => err ? reject(err) : resolve(data));
     });
 
-    if (newContents === lastcontents) return;
+    if (newContents === lastContents) return;
 
-    lastcontents = newContents;
+    lastContents = newContents;
     cb(newContents);
   };
 
   watcher.on('change', changeHandler);
 
   return {
-    value: filecontents,
+    value: lastContents,
     cancel: () => watcher.close(),
   };
 }
 
+export async function yaml_file(filename, cb) {
+  const { cancel, value } = await file(filename, (newContents) => {
+    const parsedNew = YAML.parse(newContents);
+    cb(parsedNew);
+  });
+
+  const parsedValue = YAML.parse(value);
+  return {
+    value: parsedValue,
+    cancel,
+  }
+}
+
+export async function json_file(filename, cb) {
+  const { cancel, value } = await file(filename, (newContents) => {
+    const parsedNew = JSON.parse(newContents);
+    cb(parsedNew);
+  });
+
+  const parsedValue = JSON.parse(value);
+  return {
+    value: parsedValue,
+    cancel,
+  }
+}

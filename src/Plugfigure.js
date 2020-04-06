@@ -1,7 +1,7 @@
 import YAML from 'yaml';
 import { file } from './plugins';
 
-import WatcherTree from './WatcherTree';
+import ConfigTree from './ConfigTree';
 
 // We may want to pull this from somewhere. Not sure yet.
 const maxRecursion = 25;
@@ -25,7 +25,7 @@ export default class Plugfigure {
   }
 
   async load(value) {
-    this.tree = new WatcherTree(value, undefined, this);
+    this.tree = new ConfigTree(value, undefined, this);
   }
 
   async getPluginValue(query, watcher) {
@@ -35,13 +35,13 @@ export default class Plugfigure {
     const pluginName = pluginRawName.substring(1);
 
     const plugin = this.plugins[pluginName];
-    return plugin(args, watcher);
+    return plugin(...args, watcher);
   }
 
   key(key) {
     if (!this.tree) throw new Error('Cannot retrieve node from unloaded instance');
 
-    return this.tree.getChild(key);
+    return this.tree.key(key);
   }
 }
 
