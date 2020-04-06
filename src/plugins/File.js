@@ -2,7 +2,7 @@ import fs from 'fs';
 import os from 'os';
 import YAML from 'yaml';
 
-export async function file(filename, cb) {
+export async function file([ filename ], cb) {
   const fixedFilename = /^~\//.test(filename) ? `${os.homedir()}/${filename.substring(2)}` : filename;
 
   let lastContents = await new Promise((resolve, reject) => {
@@ -44,8 +44,8 @@ export async function file(filename, cb) {
   };
 }
 
-export async function yaml_file(filename, cb) {
-  const { cancel, value } = await file(filename, (newContents) => {
+export async function yaml_file(args, cb) {
+  const { cancel, value } = await file(args, (newContents) => {
     const parsedNew = YAML.parse(newContents);
     cb(parsedNew);
   });
@@ -57,8 +57,8 @@ export async function yaml_file(filename, cb) {
   }
 }
 
-export async function json_file(filename, cb) {
-  const { cancel, value } = await file(filename, (newContents) => {
+export async function json_file(args, cb) {
+  const { cancel, value } = await file(args, (newContents) => {
     const parsedNew = JSON.parse(newContents);
     cb(parsedNew);
   });

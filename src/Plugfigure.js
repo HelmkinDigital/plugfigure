@@ -35,7 +35,7 @@ export default class Plugfigure {
     const pluginName = pluginRawName.substring(1);
 
     const plugin = this.plugins[pluginName];
-    return plugin(...args, watcher);
+    return plugin(args, watcher);
   }
 
   key(key) {
