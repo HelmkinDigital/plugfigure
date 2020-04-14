@@ -35,6 +35,9 @@ export default class Plugfigure {
     const pluginName = pluginRawName.substring(1);
 
     const plugin = this.plugins[pluginName];
+    if (typeof plugin !== 'function') {
+      throw new Error(`Unknown plugin ${pluginName}`);
+    }
     return plugin(args, watcher);
   }
 

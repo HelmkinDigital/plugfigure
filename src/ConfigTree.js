@@ -79,12 +79,30 @@ export default class ConfigTree extends EventEmitter {
     return newValue;
   }
 
+  async getFullValue() {
+    const baseValue = await this.getValue();
+    if (typeof baseValue !== 'object') return baseValue;
+
+    if (Array.isArray(baseValue)) {
+      return Promise.all(baseValue.map((_, i) => this.key(String(i)).fullValue));
+    }
+
+    const entryPromises = Object.keys(baseValue).map(async key => [key, await this.key(key).fullValue])
+    const entries = await Promise.all(entryPromises);
+
+    return entries.reduce((acc, [k, v]) => ({ ...acc, [k]: v }), {});
+  }
+
   get value() {
     return this.getValue();
   }
 
+  get fullValue() {
+    return this.getFullValue();
+  }
+
   key(key) {
-    if (!key) return this;
+    if (key === undefined) return this;
 
     if (typeof key !== 'string' && !Array.isArray(key)) {
       throw new Error('Child key must be a string or array');
